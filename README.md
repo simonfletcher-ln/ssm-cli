@@ -22,7 +22,8 @@ You will need access to a few aws actions, below is a policy which should cover 
         "Effect": "Allow",
         "Action": [
             "resourcegroupstaggingapi:GetResources",
-            "ssm:DescribeInstanceInformation"
+            "ssm:DescribeInstanceInformation",
+            "ssm:StartSession"
         ],
         "Resource": "*"
         }

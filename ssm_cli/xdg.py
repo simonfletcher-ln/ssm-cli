@@ -15,7 +15,8 @@ def get_conf_file() -> Path:
     return get_conf_root() / 'ssm.yaml'
 def get_log_file() -> Path:
     return get_conf_root() / 'ssm.log'
-
+def get_ssh_hostkey() -> Path:
+    return get_conf_root() / 'hostkey.pem'
 
 DEFAULT_CONFIG = """---
 
