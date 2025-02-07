@@ -7,8 +7,8 @@ from rich_argparse import ArgumentDefaultsRichHelpFormatter
 
 from ssm_cli.config import config
 from ssm_cli.xdg import get_log_file
-from ssm_cli.selectors import SELECTORS
-from ssm_cli.actions import ACTIONS
+from ssm_cli.commands import COMMANDS
+from ssm_cli.cli_args import CliArgumentParser
 
 import logging
 logging.basicConfig(
@@ -33,28 +33,18 @@ def cli(argv: list = None) -> int:
 
     logger.debug(f"CLI called with {argv}")
 
-    # Seperate out the parent parser so that we can add it to the subparsers, stops arguments having to passed in a strange order
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("--version", action="version", version="0.1.0") #TODO: swap to pull dynamically
-    parent_parser.add_argument("--profile", type=str, help="Which AWS profile to use")
-
-    # Load config object now, so we can add the arguments
-    config.add_arguments(parent_parser.add_argument_group("Config", "Arguments to override config"))
-
     # Build the actual parser
-    parser = argparse.ArgumentParser(
+    parser = CliArgumentParser(
         prog="ssm",
         description="tool to manage AWS SSM",
         formatter_class=ArgumentDefaultsRichHelpFormatter,
     )
+    parser.add_global_argument("--version", action="version", version="0.1.0") #TODO: swap to pull dynamically
+    parser.add_global_argument("--profile", type=str, help="Which AWS profile to use")
 
-    # Loop each action and add their subcommands
-    action_subparsers = parser.add_subparsers(title="Actions", dest="action", required=True, metavar="<action>")
-
-    for name, action in ACTIONS.items():
-        action_parser = action_subparsers.add_parser(name, help=action.HELP, parents=[parent_parser])
-        action.add_arguments(action_parser)
-        action_parser.formatter_class = ArgumentDefaultsRichHelpFormatter
+    for name, command in COMMANDS.items():
+        command_parser = parser.add_command_parser(name, command.HELP)
+        command.add_arguments(command_parser)
 
     args = parser.parse_args(argv)
 
@@ -68,7 +58,7 @@ def cli(argv: list = None) -> int:
         logging.getLogger(logger_name).setLevel(level.upper())
 
     try:
-        session = boto3.Session(profile_name=args.profile)
+        session = boto3.Session(profile_name=args.global_args.profile)
         if session.region_name is None:
             eprint(f"AWS config missing region for profile {session.profile_name}")
             logger.error(f"AWS config missing region for profile {session.profile_name}")
@@ -79,9 +69,9 @@ def cli(argv: list = None) -> int:
         return 2
 
     try:
-        if args.action not in ACTIONS:
+        if args.command not in COMMANDS:
             raise RuntimeError(f"failed to find action {args.action}")
-        ACTIONS[args.action].run(args, session)
+        COMMANDS[args.command].run(args, session)
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == 'ExpiredTokenException':
             eprint(f"AWS credentials expired")

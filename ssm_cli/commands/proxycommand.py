@@ -4,12 +4,12 @@ import time
 from ssm_cli.ssh.server import SshServer
 from ssm_cli.instances import Instances
 from ssm_cli.config import config
-from ssm_cli.actions.base import BaseAction
+from ssm_cli.commands.base import BaseCommand
 
 import logging
 logger = logging.getLogger(__name__)
 
-class ProxyCommandAction(BaseAction):
+class ProxyCommandCommand(BaseCommand):
     HELP="SSH ProxyCommand feature"
     def add_arguments(parser):
         parser.add_argument("group", type=str, help="group to run against")

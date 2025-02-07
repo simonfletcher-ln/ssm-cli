@@ -3,7 +3,7 @@ import argparse
 
 import boto3
 
-class BaseAction(ABC):
+class BaseCommand(ABC):
     HELP: str = None
     @abstractmethod
     def add_arguments(parser: argparse.ArgumentParser):

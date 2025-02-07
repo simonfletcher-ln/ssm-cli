@@ -97,4 +97,3 @@ class SshServer(paramiko.ServerInterface):
     def get_banner(self):
         return ("SSM CLI - ProxyCommand SSH server\r\n", "en-US")
 
-
