@@ -117,10 +117,17 @@ class Instances:
         self.session = session
         
     def select_instance(self, group_tag_value: str, selector: str) -> Instance:
+        instances = sorted(self.list_instances(group_tag_value), key=lambda x: ip_as_int(x.ip))
+        count = len(instances)
+        if count == 1:
+            return instances[0]
+        if count < 1:
+            return
+        
         if selector not in SELECTORS:
             raise ValueError(f"invalid selector {selector}")
+        
         self.selector = SELECTORS[selector]
-        instances = sorted(self.list_instances(group_tag_value), key=lambda x: ip_as_int(x.ip))
         return self.selector(instances)
 
     def list_groups(self) -> List[str]:
@@ -154,6 +161,7 @@ class Instances:
         logger.info("calling out to resourcegroupstaggingapi:GetResources")
 
         client = self.session.client('resourcegroupstaggingapi')
+        paginator = client.get_paginator('get_resources')
         tag_filter = {
             'Key': config.group_tag_key
         }
@@ -161,14 +169,18 @@ class Instances:
             tag_filter['Values'] = [group_tag_value]
 
         logger.debug(f"filtering on {tag_filter}")
-        response = client.get_resources(
+        page_iter = paginator.paginate(
             ResourceTypeFilters=[
                 "ec2:instance"
             ],
             TagFilters=[tag_filter]
         )
-        logger.debug(f"found {len(response['ResourceTagMappingList'])} resources")
-        return response['ResourceTagMappingList']
+        total = 0
+        for page in page_iter:
+            for resource in page['ResourceTagMappingList']:
+                total += 1
+                yield resource
+        logger.debug(f"yielded {total} resources")
 
 
     def _describe_instance_information(self, group_tag_value: str):

@@ -5,6 +5,8 @@ import boto3
 
 class BaseCommand(ABC):
     HELP: str = None
+    CONFIG: type = None
+    
     @abstractmethod
     def add_arguments(parser: argparse.ArgumentParser):
         pass

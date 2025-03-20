@@ -3,27 +3,27 @@ from pathlib import Path
 from xdg_base_dirs import xdg_config_home
 
 
-def get_conf_root() -> Path:
+def get_conf_root(check=True) -> Path:
     root = xdg_config_home() / 'ssm-cli'
-    if not root.exists():
-        root.mkdir(parents=True)
-        with open(root / 'ssm.yaml', 'w+') as f:
-            f.write(DEFAULT_CONFIG)
+    if check and not root.exists():
+        from ssm_cli.commands.setup import create_conf_dir
+        create_conf_dir()
     return root
 
-def get_conf_file() -> Path:
-    return get_conf_root() / 'ssm.yaml'
-def get_log_file() -> Path:
-    return get_conf_root() / 'ssm.log'
-def get_ssh_hostkey() -> Path:
-    return get_conf_root() / 'hostkey.pem'
+def get_conf_file(check=True) -> Path:
+    path = get_conf_root(check) / 'ssm.yaml'
+    if check and not path.exists():
+        raise EnvironmentError(f"{path} missing, run `ssm setup` to create")
+    return path
 
-DEFAULT_CONFIG = """---
+def get_log_file(check=False) -> Path:
+    path = get_conf_root(True) / 'ssm.log'
+    if check and not path.exists():
+        raise EnvironmentError(f"{path} missing, run `ssm setup` to create")
+    return path
 
-group_tag_key: group
-
-log:
-    level: info
-    loggers:
-        botocore: warn
-"""
+def get_ssh_hostkey(check=True) -> Path:
+    path = get_conf_root(check) / 'hostkey.pem'
+    if check and not path.exists():
+        raise EnvironmentError(f"{path} missing, run `ssm setup` to create")
+    return path

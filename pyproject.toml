@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "ssm-cli"
+authors = [
+  { name="Simon Fletcher", email="simon.fletcher@lexisnexisrisk.com" },
+]
+description = "CLI tool to help with SSM functionality, aimed at adminstrators"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = [
+    "boto3",
+    "inquirer",
+    "paramiko",
+    "rich-argparse",
+    "confclasses",
+    "xdg_base_dirs"
+]
+dynamic = ["version"]
+
+
+[project.scripts]
+ssm = "ssm_cli.cli:cli"
+
+
+[project.license]
+file = "LICENCE"
+
+
+[project.urls]
+Homepage = "https://github.com/simonfletcher-ln/ssm-cli"
+Issues = "https://github.com/simonfletcher-ln/ssm-cli/issues"
+
+
+[tool.setuptools.dynamic]
+version = { attr = "ssm_cli.__version__" }

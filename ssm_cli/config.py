@@ -1,28 +1,28 @@
 from typing import Dict
-from ssm_cli.configclasses import ConfigClass, configclass, field
+from confclasses import confclass
 
-@configclass
-class ShellConfig(ConfigClass):
-    selector: str = field(default="tui", help="which selector to use")
 
-@configclass
-class ProxyCommandConfig(ConfigClass):
-    selector: str = field(default="first", help="which selector to use")
+@confclass
+class ProxyCommandConfig:
+    selector: str = "first"
 
-@configclass
-class ActionsConfig(ConfigClass):
-    shell: ShellConfig
+@confclass
+class ActionsConfig:
     proxycommand: ProxyCommandConfig
+    
+@confclass
+class LoggingConfig:
+    level: str = "info"
+    loggers: Dict[str, str] = {
+        "botocore": "warn"
+    }
+    """key value dictionary to override log level on, some modules make a lot of noise, botocore for example"""
 
-@configclass
-class LoggingConfig(ConfigClass):
-    level: str = field(default="info", help="logging level")
-    loggers: Dict[str, str] = field(help="key value dictionary to override log level on")
-
-@configclass
-class Config(ConfigClass):
-    group_tag_key: str = field(default="group", help="Tag key to use when filtering")
+@confclass
+class Config:
     log: LoggingConfig
     actions: ActionsConfig
-
+    group_tag_key: str = "group"
+    """Tag key to use when filtering, this is usually set during ssm setup."""
+    
 config = Config()
