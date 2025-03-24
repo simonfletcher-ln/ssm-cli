@@ -14,6 +14,8 @@ class CliArgumentParser(argparse.ArgumentParser):
             # we cannot use help action here because it will just return the global arguments
             self.global_args_parser_group.add_argument('--help', '-h', action="store_true", help="show this help message and exit")
 
+        self.global_args_parser_group.add_argument("--version", action=VersionAction)
+
         super().__init__(*args, **kwargs)
         self._command_subparsers = self.add_subparsers(title="Commands", dest="command", metavar="<command>", parser_class=argparse.ArgumentParser)
         self._command_subparsers_map = {}
@@ -82,3 +84,24 @@ class CliNamespace(argparse.Namespace):
                 self._do_update_config(getattr(config, name), data)
             elif name in data and data[name] is not None:
                 setattr(config, name, data[name])
+
+
+class VersionAction(argparse._VersionAction):
+    def __init__(self, option_strings, dest = argparse.SUPPRESS, default = argparse.SUPPRESS, help = None, deprecated = False):
+        super().__init__(option_strings, None, dest, default, help, deprecated)
+
+    def __call__(self, parser, namespace, values, option_string = None):
+        from subprocess import run
+        from importlib.metadata import version
+
+        try:
+            results = run(["session-manager-plugin", "--version"], capture_output=True, text=True)
+        except FileNotFoundError:
+            print("session-manager-plugin not found", file=sys.stderr)
+            parser.exit(1)
+        
+        v = sys.version_info
+        print(f"ssm-cli {version('ssm-cli')}")
+        print(f"python {v.major}.{v.minor}.{v.micro}")
+        print(f"session-manager-plugin {results.stdout.strip()}")
+        parser.exit()

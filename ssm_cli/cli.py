@@ -39,7 +39,6 @@ def cli(argv: list = None) -> int:
         description="tool to manage AWS SSM",
         formatter_class=ArgumentDefaultsRichHelpFormatter,
     )
-    parser.add_global_argument("--version", action="version", version="0.1.0") #TODO: swap to pull dynamically
     parser.add_global_argument("--profile", type=str, help="Which AWS profile to use")
 
     for name, command in COMMANDS.items():
