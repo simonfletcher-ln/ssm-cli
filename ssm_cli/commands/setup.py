@@ -1,4 +1,5 @@
 import argparse
+import paramiko
 from ssm_cli.commands.base import BaseCommand
 from ssm_cli.xdg import get_conf_root, get_conf_file, get_log_file, get_ssh_hostkey
 
@@ -16,6 +17,7 @@ class SetupCommand(BaseCommand):
 
         create_conf_dir()
         create_conf_file(args.replace)
+        create_hostkey()
 
 def create_conf_dir():
     root = get_conf_root(False)
@@ -52,3 +54,12 @@ def create_conf_file(replace):
     except Exception as e:
         logger.error(e)
         path.unlink(True)
+
+def create_hostkey():
+    path = get_ssh_hostkey(False)
+    if path.exists():
+        print(f"{path} - skipping (already exists)")
+        return
+    host_key = paramiko.RSAKey.generate(1024)
+    host_key.write_private_key_file(path)
+    print(f"{path} - created")

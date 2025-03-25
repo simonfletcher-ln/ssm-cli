@@ -30,14 +30,9 @@ class SshServer(paramiko.ServerInterface):
         self.channels = Channels(self.transport)
 
         key_path = get_ssh_hostkey()
-        if key_path.exists():
-            host_key = paramiko.RSAKey(filename=key_path)
-            logger.info("Loaded existing host key")
-        else:
-            host_key = paramiko.RSAKey.generate(1024)
-            host_key.write_private_key_file(key_path)
-            logger.info("Generated new host key and saved to file")
-
+        host_key = paramiko.RSAKey(filename=key_path)
+        logger.info("Loaded existing host key")
+        
         self.transport.add_server_key(host_key)
         self.transport.start_server(server=self)
 
