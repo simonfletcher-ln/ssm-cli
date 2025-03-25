@@ -4,6 +4,5 @@ import ssm_cli.selectors.gui as gui
 
 SELECTORS = {
     'tui': tui.select,
-    'first': first.select,
-    'gui': gui.select
+    'first': first.select
 }

@@ -87,9 +87,6 @@ class CliNamespace(argparse.Namespace):
 
 
 class VersionAction(argparse._VersionAction):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def __call__(self, parser, namespace, values, option_string = None):
         from subprocess import run
         from importlib.metadata import version

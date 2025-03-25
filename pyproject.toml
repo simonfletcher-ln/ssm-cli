@@ -22,8 +22,7 @@ dependencies = [
     "paramiko",
     "rich-argparse",
     "confclasses",
-    "xdg_base_dirs",
-    "easygui"
+    "xdg_base_dirs"
 ]
 dynamic = ["version"]
 
