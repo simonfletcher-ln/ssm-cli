@@ -80,9 +80,7 @@ class SshServer(paramiko.ServerInterface):
     # Start a echo shell if requested
     def check_channel_shell_request(self, channel):
         logger.info(f"shell request: {channel.get_id()}")
-        t = ShellThread(channel, self.channels)
-        t.start()
-        return True
+        return self.start_shell(channel)
 
     # The real meat and potatos here!
     def check_channel_direct_tcpip_request(self, chanid, origin, destination):
@@ -109,17 +107,21 @@ class SshServer(paramiko.ServerInterface):
     def check_channel_exec_request(self, channel, command):
         logger.info(f"exec request: {command}")
 
-        logger.debug(f"start interactive command instance={self.instance.id}")
+        return self.start_shell(channel, command)
+
+    def start_shell(self, channel, command=None):
+        logger.info(f"starting shell: {channel.get_id()}")
+
         client = self.session.client('ssm')
 
         # We dont use the command here because we need to turn off echo and other bits
         parameters = dict(
             Target=self.instance.id,
-            DocumentName='AWS-StartInteractiveCommand',
-            Parameters={
-                'command': ['sh --noprofile --norc -to pipefail']
-            }
         )
+        if command is not None:
+            logger.info(f"command provided, using AWS-StartInteractiveCommand and a sh wrapper")
+            parameters['DocumentName'] = 'AWS-StartInteractiveCommand'
+            parameters['Parameters'] = {'command': ['sh --noprofile --norc -to pipefail']}
         
         logger.info("calling out to ssm:StartSession")
         response = client.start_session(**parameters)
@@ -147,23 +149,32 @@ class SshServer(paramiko.ServerInterface):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT
             )
+
+            # Session manager puts a bunch of crap in the stdout, we need to read it all to get to the shell
             proc.stdout.readline()
             if not proc.stdout.readline().startswith(b"Starting session with SessionId"):
                 raise RuntimeError("Failed to start session")
             
             # turn off echo and read loop instead of cat because EOF stops cat
-            proc.stdin.write(f"stty -echo; while IFS= read line; do echo \"$line\"; done | {command.decode()}\n".encode())
-            proc.stdin.flush()
+            if command is not None:
+                logger.info(f"command provided, starting shell forwarder")
+                proc.stdin.write(f"stty -echo; while IFS= read line; do echo \"$line\"; done | {command.decode()}\n".encode())
+                proc.stdin.flush()
 
-            if not proc.stdout.readline().find(b"stty -echo; "):
-                raise RuntimeError("Failed to start shell")
+                # we turn echo off, but we need to hide this line form the user
+                if not proc.stdout.readline().find(b"stty -echo; "):
+                    raise RuntimeError("Failed to start shell")
+            
             time.sleep(0.1)
             ready.set()
             
             def forward_proc_to_chan():
                 logger.debug("started")
-                for line in proc.stdout:
-                    channel.send(line)
+                while True:
+                    char = proc.stdout.read(1)
+                    if not char:
+                        break
+                    channel.send(char)
                 proc.stdout.close()
                 logger.debug("finished")
 
