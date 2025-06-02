@@ -6,12 +6,8 @@ from dataclasses import dataclass
 import logging
 logger = logging.getLogger(__name__)
 
-@dataclass
-class ShellConfig:
-    selector: str = "tui"
 
 class ShellCommand(BaseCommand):
-    CONFIG = ShellConfig
     HELP = "Connects to instances"
     
     def add_arguments(parser):
@@ -21,7 +17,7 @@ class ShellCommand(BaseCommand):
         logger.info("running shell action")
 
         instances = Instances(session)
-        instance = instances.select_instance(args.group, "tui")
+        instance = instances.select_instance(args.group, "gui")
 
         if instance is None:
             logger.error("failed to select host")

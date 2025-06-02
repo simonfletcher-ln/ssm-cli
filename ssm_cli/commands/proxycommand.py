@@ -1,8 +1,12 @@
+import signal
 import socket
+import subprocess
+import sys
 import time
+import os
 
 from ssm_cli.ssh.server import SshServer
-from ssm_cli.instances import Instances
+from ssm_cli.instances import Instances, Instance
 from ssm_cli.config import config
 from ssm_cli.commands.base import BaseCommand
 
@@ -17,6 +21,9 @@ class ProxyCommandCommand(BaseCommand):
     def run(args, session):
         logger.info("running proxycommand action")
 
+        if os.isatty(0):
+            print("'proxycommand' should not be used from a TTY, you probably wanted to use 'tunnel'.\n\nPlease see README for more info on proxycommand.")
+            return
 
         instances = Instances(session)
         instance = instances.select_instance(args.group, config.actions.proxycommand.selector)
@@ -27,10 +34,23 @@ class ProxyCommandCommand(BaseCommand):
 
         logger.info(f"connecting to {repr(instance)}")
         
-        server = SshServer(direct_tcpip_callback(instance, session))
-        server.start()
+        if sys.platform == "win32":
+            signals_to_ignore = [signal.SIGINT]
+        else:
+            signals_to_ignore = [signal.SIGINT, signal.SIGQUIT, signal.SIGTSTP]
 
-def direct_tcpip_callback(instance, session):
+        original_signal_handlers = {}
+        for sig in signals_to_ignore:
+            original_signal_handlers[sig] = signal.signal(sig, signal.SIG_IGN)
+        try:
+            server = SshServer(instance, session, direct_tcpip_callback(instance, session))
+            server.start()
+        finally:
+            for sig, handler in original_signal_handlers.items():
+                signal.signal(sig, handler)
+        
+
+def direct_tcpip_callback(instance: Instance, session):
     def callback(host, remote_port) -> socket.socket:
         logger.debug(f"connect to {host}:{remote_port}")
         internal_port = get_next_free_port(remote_port + 3000, 20)

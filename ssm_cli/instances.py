@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Instance:
-    """ Save passing around giant objects, we only need handful of details for this tool """
+    """ Represents an EC2 instance """
     id: str
     name: str
     ip: str
@@ -51,8 +51,8 @@ class Instance:
         ])
         if result != 0:
             logger.error(f"Failed to connect to session: {result.stderr.decode()}")
-            raise RuntimeError(f"Failed to connect to session: {result.stderr.decode()}")
-        
+            raise RuntimeError(f"Failed to connect to session: {result.stderr.decode()}")   
+    
     def start_port_forwarding_session_to_remote_host(self, session, host: str, remote_port: int, internal_port: int):
         logger.debug(f"start port forwarding between localhost:{internal_port} and {host}:{remote_port} via {self.id}")
         client = session.client('ssm')
@@ -93,7 +93,7 @@ class Instance:
 
 
 
-def _session_manager_plugin( command: list) -> int:
+def _session_manager_plugin( command: list ) -> int:
     """ Call out to subprocess and ignore interrupts """
     if sys.platform == "win32":
         signals_to_ignore = [signal.SIGINT]

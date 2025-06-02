@@ -1,11 +1,17 @@
+import json
+import os
+import subprocess
 import threading
+import boto3
 import paramiko
+import time
 
 from ssm_cli.ssh.transport import StdIoSocket
 from ssm_cli.ssh.shell import ShellThread
 from ssm_cli.ssh.forward import ForwardThread
 from ssm_cli.ssh.channels import Channels
 from ssm_cli.xdg import get_ssh_hostkey
+from ssm_cli.instances import Instance
 
 import logging
 logger = logging.getLogger(__name__)
@@ -16,10 +22,15 @@ class SshServer(paramiko.ServerInterface):
     """
     event: threading.Event
     direct_tcpip_callback: callable
+    instance: Instance
+    session: boto3.Session
+    needs_pty: bool = False
     
-    def __init__(self, direct_tcpip_callback: callable):
+    def __init__(self, instance: Instance, session, direct_tcpip_callback: callable):
         logger.debug("creating server")
         self.event = threading.Event()
+        self.instance = instance
+        self.session = session
         self.direct_tcpip_callback = direct_tcpip_callback
     
     def start(self):
@@ -62,7 +73,10 @@ class SshServer(paramiko.ServerInterface):
     
     # Just accept the PTY request
     def check_channel_pty_request(self, channel, term, width, height, pixelwidth, pixelheight, modes):
+        logger.debug(f"pty request: {term} {width}x{height}")
+        self.needs_pty = True
         return True
+    
     # Start a echo shell if requested
     def check_channel_shell_request(self, channel):
         logger.info(f"shell request: {channel.get_id()}")
@@ -92,3 +106,89 @@ class SshServer(paramiko.ServerInterface):
     def get_banner(self):
         return ("SSM CLI - ProxyCommand SSH server\r\n", "en-US")
 
+    def check_channel_exec_request(self, channel, command):
+        logger.info(f"exec request: {command}")
+
+        logger.debug(f"start interactive command instance={self.instance.id}")
+        client = self.session.client('ssm')
+
+        # We dont use the command here because we need to turn off echo and other bits
+        parameters = dict(
+            Target=self.instance.id,
+            DocumentName='AWS-StartInteractiveCommand',
+            Parameters={
+                'command': ['sh --noprofile --norc -to pipefail']
+            }
+        )
+        
+        logger.info("calling out to ssm:StartSession")
+        response = client.start_session(**parameters)
+
+        logger.info(f"starting session: {response['SessionId']}")
+
+        ready = threading.Event()
+        def thread():
+            logger.debug("starting proc thread")
+            proc = subprocess.Popen(
+                [
+                    "session-manager-plugin",
+                    json.dumps({
+                        "SessionId": response["SessionId"],
+                        "TokenValue": response["TokenValue"],
+                        "StreamUrl": response["StreamUrl"]
+                    }),
+                    self.session.region_name,
+                    "StartSession",
+                    self.session.profile_name,
+                    json.dumps(parameters),
+                    f"https://ssm.{self.session.region_name}.amazonaws.com"
+                ],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT
+            )
+            proc.stdout.readline()
+            if not proc.stdout.readline().startswith(b"Starting session with SessionId"):
+                raise RuntimeError("Failed to start session")
+            
+            # turn off echo and read loop instead of cat because EOF stops cat
+            proc.stdin.write(f"stty -echo; while IFS= read line; do echo \"$line\"; done | {command.decode()}\n".encode())
+            proc.stdin.flush()
+
+            if not proc.stdout.readline().find(b"stty -echo; "):
+                raise RuntimeError("Failed to start shell")
+            time.sleep(0.1)
+            ready.set()
+            
+            def forward_proc_to_chan():
+                logger.debug("started")
+                for line in proc.stdout:
+                    channel.send(line)
+                proc.stdout.close()
+                logger.debug("finished")
+
+            def forward_chan_to_proc():
+                logger.debug("started")
+                while True:
+                    data = channel.recv(1024)
+                    if not data:
+                        break
+                    proc.stdin.write(data)
+                    proc.stdin.flush()
+                logger.debug("sending EOF to session manager plugin")
+                proc.stdin.write(b'\x04')  # Send the EOF character (Ctrl+D)
+                proc.stdin.flush()
+                logger.debug("finished")
+
+            threading.Thread(target=forward_proc_to_chan).start()
+            threading.Thread(target=forward_chan_to_proc).start()
+
+            proc.wait()
+            channel.close()            
+            logger.debug("finished proc thread")
+
+        threading.Thread(target=thread).start()
+
+        ready.wait()
+        logger.debug("proc thread is ready, letting ssh client know")
+        return True
