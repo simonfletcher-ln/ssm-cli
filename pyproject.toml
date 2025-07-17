@@ -21,7 +21,7 @@ dependencies = [
     "inquirer",
     "paramiko",
     "rich-argparse",
-    "confclasses",
+    "confclasses>=0.3.1",
     "xdg_base_dirs"
 ]
 dynamic = ["version"]
