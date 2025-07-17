@@ -15,7 +15,7 @@ logging.basicConfig(
     level=logging.WARNING,
     filename=get_log_file(),
     filemode='+wt',
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(threadName)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
