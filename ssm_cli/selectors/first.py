@@ -7,5 +7,5 @@ def select(instances):
         if instance.ping == "Online":
             return instance
     
-    logger.error("No instance is has ping Online")
+    logger.error("No instance has ping Online")
     return None
