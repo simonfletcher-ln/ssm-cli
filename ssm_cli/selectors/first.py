@@ -1,2 +1,11 @@
+import logging
+
+logger = logging.getLogger()
+
 def select(instances):
-    return instances[0]
+    for instance in instances:
+        if instance.ping == "Online":
+            return instance
+    
+    logger.error("No instance has ping Online")
+    return None
