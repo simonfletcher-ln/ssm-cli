@@ -24,5 +24,5 @@ class Config:
     actions: ActionsConfig
     group_tag_key: str = "group"
     """Tag key to use when filtering, this is usually set during ssm setup."""
-    
+
 config = Config()
